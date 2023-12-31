@@ -25,6 +25,15 @@ Kubeflow
 Kubernetes
 Launchpad
 linter
+kB
+kbit
+KiB
+kibi
+Kibit
+KVM
+lookups
+Loongarch
+LRU
 LTS
 Makefile
 Matrix
