@@ -309,6 +309,9 @@ func GetCPU() (*api.ResourcesCPU, error) {
 		return nil, fmt.Errorf("Failed to list %q: %w", sysDevicesCPU, err)
 	}
 
+	// CPU flags
+	var flagList []string
+
 	// Process all entries
 	cpu.Total = 0
 	for _, entry := range entries {
@@ -361,6 +364,63 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			if ok {
 				resSocket.Vendor = cpuInfo.Vendor
 				resSocket.Name = cpuInfo.Name
+
+			// CPU information
+			for cpuInfo.Scan() {
+				line := strings.TrimSpace(cpuInfo.Text())
+				if !strings.HasPrefix(line, "processor") {
+					continue
+				}
+
+				// Check if we're dealing with the right CPU
+				fields := strings.SplitN(line, ":", 2)
+				value := strings.TrimSpace(fields[1])
+
+				if value != fmt.Sprintf("%v", cpuSocket) {
+					continue
+				}
+
+				// Iterate until we hit the separator line
+				for cpuInfo.Scan() {
+					line := strings.TrimSpace(cpuInfo.Text())
+
+					// End of processor section
+					if line == "" {
+						break
+					}
+
+					// Check if we already have the data and seek to next
+					if resSocket.Vendor != "" && resSocket.Name != "" && len(flagList) > 0 {
+						continue
+					}
+
+					// Get key/value
+					fields := strings.SplitN(line, ":", 2)
+					key := strings.TrimSpace(fields[0])
+					value := strings.TrimSpace(fields[1])
+
+					if key == "vendor_id" {
+						resSocket.Vendor = value
+						continue
+					}
+
+					if key == "model name" {
+						resSocket.Name = value
+						continue
+					}
+
+					if key == "cpu" {
+						resSocket.Name = value
+						continue
+					}
+
+					if key == "flags" {
+						flagList = strings.SplitN(value, " ", -1)
+						continue
+					}
+				}
+
+				break
 			}
 
 			// Fill in model/vendor from DMI if missing.
@@ -431,6 +491,9 @@ func GetCPU() (*api.ResourcesCPU, error) {
 
 			// Die number
 			resCore.Die = uint64(cpuDie)
+
+			// flag List
+			resCore.Flags = flagList
 
 			// Frequency
 			if sysfsExists(filepath.Join(entryPath, "cpufreq", "scaling_cur_freq")) {
