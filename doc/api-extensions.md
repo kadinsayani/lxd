@@ -2542,3 +2542,7 @@ This introduces the configuration keys {config:option}`storage-ceph-pool-conf:ce
 ## `network_get_target`
 
 Adds optional `target` parameter to `GET /1.0/network`. When target is set, forward the request to the specified cluster member and return the non-managed interfaces from that member.
+
+## `resources_cpu_flags`
+
+Adds CPU flags to resources API.
