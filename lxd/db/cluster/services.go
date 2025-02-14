@@ -1,6 +1,12 @@
 package cluster
 
-import "github.com/canonical/lxd/shared/api"
+import (
+	"context"
+	"database/sql"
+	"strings"
+
+	"github.com/canonical/lxd/shared/api"
+)
 
 // Code generation directives.
 //
@@ -42,4 +48,16 @@ type Service struct {
 type ServiceFilter struct {
 	ID   *int
 	Name *string
+}
+
+// ToAPI converts the database Service struct to API type.
+func (r *Service) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Service, error) {
+	apiService := &api.Service{
+		Name:        r.Name,
+		Addresses:   strings.Split(r.Addresses, ","),
+		Type:        r.Type,
+		Description: r.Description,
+	}
+
+	return apiService, nil
 }
