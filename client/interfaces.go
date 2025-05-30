@@ -474,6 +474,16 @@ type InstanceServer interface {
 	GetPermissions(args GetPermissionsArgs) (permissions []api.Permission, err error)
 	GetPermissionsInfo(args GetPermissionsArgs) (permissions []api.PermissionInfo, err error)
 
+	// Replica functions
+	GetReplicas() (replicas []api.Replica, err error)
+	GetReplica(name string) (replica *api.Replica, ETag string, err error)
+	GetReplicaNames() (names []string, err error)
+	GetReplicaState(name string) (replicaState *api.ReplicaState, ETag string, err error)
+	CreateReplica(replica api.ReplicaPost) (err error)
+	RunReplica(replica api.ReplicaPost) (err error)
+	UpdateReplica(name string, replica api.ReplicaPut, ETag string) (err error)
+	DeleteReplica(name string) (err error)
+
 	// Internal functions (for internal use)
 	RawQuery(method string, path string, data any, queryETag string) (resp *api.Response, ETag string, err error)
 	RawWebsocket(path string) (conn *websocket.Conn, err error)
