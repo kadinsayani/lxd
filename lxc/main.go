@@ -253,6 +253,10 @@ For help with any of those, simply call them with --help.`))
 	renameCmd := cmdRename{global: &globalCmd}
 	app.AddCommand(renameCmd.command())
 
+	// replica sub-command
+	replicaCmd := cmdReplica{global: &globalCmd}
+	app.AddCommand(replicaCmd.command())
+
 	// restart sub-command
 	restartCmd := cmdRestart{global: &globalCmd}
 	app.AddCommand(restartCmd.command())
