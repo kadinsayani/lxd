@@ -77,6 +77,7 @@ const (
 	RemoveExpiredTokens
 	ClusterHeal
 	UpdateClusterLinkVolatileAddresses
+	ReplicaRun
 )
 
 // Description return a human-readable description of the operation type.
@@ -202,6 +203,8 @@ func (t Type) Description() string {
 		return "Healing cluster"
 	case UpdateClusterLinkVolatileAddresses:
 		return "Updating cluster link volatile addresses"
+	case ReplicaRun:
+		return "Running replica"
 	default:
 		return "Executing operation"
 	}
