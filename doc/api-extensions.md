@@ -2695,3 +2695,5 @@ This includes the following new endpoints (see [RESTful API](rest-api.md) for de
 * `POST /1.0/cluster/links` - adds a cluster link.
 * `POST /1.0/cluster/links/<name>` - renames a specific cluster link.
 * `DELETE /1.0/cluster/links/<name>` - deletes a specific cluster link.
+
+## replicas

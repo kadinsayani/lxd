@@ -453,6 +453,7 @@ var APIExtensions = []string{
 	"disk_io_threads_virtiofsd",
 	"oidc_client_secret",
 	"cluster_links",
+	"replicas",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
