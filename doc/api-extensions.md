@@ -2695,3 +2695,15 @@ This includes the following new endpoints (see [RESTful API](rest-api.md) for de
 * `POST /1.0/cluster/links` - adds a cluster link.
 * `POST /1.0/cluster/links/<name>` - renames a specific cluster link.
 * `DELETE /1.0/cluster/links/<name>` - deletes a specific cluster link.
+
+## replicas
+
+This introduces the replicas API. Replicas are used to replicate instances across clusters.
+
+This includes the following new endpoints (see [RESTful API](rest-api.md) for details):
+* `GET /1.0/replicas/<name>` - returns information about a specific replica.
+* `GET /1.0/replicas` - returns a combined view of replicas (if any).
+* `PUT /1.0/replicas/<name>` - allows for modification of a specific replica.
+* `POST /1.0/replicas` - adds a replica.
+* `POST /1.0/replicas/<name>` - runs a specific replica.
+* `DELETE /1.0/replicas/<name>` - deletes a specific replica.
