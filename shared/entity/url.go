@@ -274,3 +274,8 @@ func IdentityProviderGroupURL(identityProviderGroupName string) *api.URL {
 func ClusterLinkURL(clusterLinkName string) *api.URL {
 	return TypeClusterLink.urlMust("", "", clusterLinkName)
 }
+
+// ReplicaURL returns an [*api.URL] to a replica.
+func ReplicaURL(projectName string, replicaName string) *api.URL {
+	return TypeReplica.urlMust(projectName, "", replicaName)
+}

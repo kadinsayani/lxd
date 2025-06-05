@@ -111,6 +111,9 @@ const (
 
 	// TypeClusterLink represents cluster link resources.
 	TypeClusterLink Type = "cluster_link"
+
+	// TypeReplica represents replica resources.
+	TypeReplica Type = "replica"
 )
 
 const (
@@ -173,6 +176,7 @@ var entityTypes = map[Type]typeInfo{
 	TypeAuthGroup:             authGroup{},
 	TypeIdentityProviderGroup: identityProviderGroup{},
 	TypeClusterLink:           clusterLink{},
+	TypeReplica:               replica{},
 }
 
 // metricsEntityTypes is the source of truth for which entity types can be used to categorize endpoints
@@ -191,6 +195,7 @@ var metricsEntityTypes = []Type{
 	TypeServer,
 	TypeIdentity,
 	TypeClusterLink,
+	TypeReplica,
 }
 
 // APIMetricsEntityTypes returns the list of entity types relevant for the API metrics.
@@ -514,4 +519,16 @@ func (clusterLink) requiresProject() bool {
 
 func (clusterLink) path() []string {
 	return []string{"cluster", "links", pathPlaceholder}
+}
+
+type replica struct {
+	typeInfoCommon
+}
+
+func (replica) requiresProject() bool {
+	return true
+}
+
+func (replica) path() []string {
+	return []string{"replicas", pathPlaceholder}
 }
