@@ -451,6 +451,7 @@ var APIExtensions = []string{
 	"networks_all_projects",
 	"clustering_restore_skip_mode",
 	"cluster_links",
+	"replicas",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
