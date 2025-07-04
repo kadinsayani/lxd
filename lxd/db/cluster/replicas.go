@@ -1,6 +1,14 @@
 package cluster
 
-import "time"
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"time"
+
+	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/shared/api"
+)
 
 // Code generation directives.
 //
@@ -41,4 +49,103 @@ type Replica struct {
 type ReplicaFilter struct {
 	ID   *int
 	Name *string
+}
+
+// CreateReplicaConfig creates config for a new replica with the given name.
+func CreateReplicaConfig(ctx context.Context, tx *sql.Tx, name string, config map[string]string) error {
+	id, err := GetReplicaID(ctx, tx, name)
+	if err != nil {
+		return err
+	}
+
+	err = replicaConfigAdd(tx, id, config)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// UpdateReplicaConfig updates the replica with the given name, setting its config.
+func UpdateReplicaConfig(ctx context.Context, tx *sql.Tx, name string, config map[string]string) error {
+	id, err := GetReplicaID(ctx, tx, name)
+	if err != nil {
+		return err
+	}
+
+	err = clearReplicaConfig(tx, id)
+	if err != nil {
+		return err
+	}
+
+	err = replicaConfigAdd(tx, id, config)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// getReplicaConfig populates the config map of the [api.Replica] with the given ID.
+func getReplicaConfig(ctx context.Context, tx *sql.Tx, replicaID int64, replica *api.Replica) error {
+	q := `
+        SELECT key, value
+        FROM replicas_config
+		WHERE replica_id=?
+	`
+
+	replica.Config = map[string]string{}
+
+	return query.Scan(ctx, tx, q, func(scan func(dest ...any) error) error {
+		var key, value string
+
+		err := scan(&key, &value)
+		if err != nil {
+			return err
+		}
+
+		_, found := replica.Config[key]
+		if found {
+			return fmt.Errorf("Duplicate config row found for key %q for replica ID %d", key, replicaID)
+		}
+
+		replica.Config[key] = value
+
+		return nil
+	}, replicaID)
+}
+
+// replicaConfigAdd adds config to the replica with the given ID.
+func replicaConfigAdd(tx *sql.Tx, replicaID int64, config map[string]string) error {
+	str := "INSERT INTO replicas_config (replica_id, key, value) VALUES(?, ?, ?)"
+	stmt, err := tx.Prepare(str)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = stmt.Close() }()
+
+	for k, v := range config {
+		if v == "" {
+			continue
+		}
+
+		_, err = stmt.Exec(replicaID, k, v)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// clearReplicaConfig removes any config from the replica with the given ID.
+func clearReplicaConfig(tx *sql.Tx, replicaID int64) error {
+	_, err := tx.Exec(
+		"DELETE FROM replicas_config WHERE replica_id=?", replicaID)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
