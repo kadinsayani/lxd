@@ -51,6 +51,29 @@ type ReplicaFilter struct {
 	Name *string
 }
 
+// ToAPI converts the database [Replica] struct to API type [api.Replica].
+func (r *Replica) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Replica, error) {
+	replica := &api.Replica{
+		Name:        r.Name,
+		Description: r.Description,
+		LastRunAt:   r.LastRunDate,
+	}
+
+	project, err := GetProjectName(ctx, tx, r.ProjectID)
+	if err != nil {
+		return nil, err
+	}
+
+	replica.Project = project
+
+	err = getReplicaConfig(ctx, tx, int64(r.ID), replica)
+	if err != nil {
+		return nil, err
+	}
+
+	return replica, nil
+}
+
 // CreateReplicaConfig creates config for a new replica with the given name.
 func CreateReplicaConfig(ctx context.Context, tx *sql.Tx, name string, config map[string]string) error {
 	id, err := GetReplicaID(ctx, tx, name)
