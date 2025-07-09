@@ -31,6 +31,10 @@ func (c *cmdReplica) command() *cobra.Command {
 	replicaCreate := cmdReplicaCreate{global: c.global}
 	cmd.AddCommand(replicaCreate.command())
 
+	// Run.
+	replicaRun := cmdReplicaRun{global: c.global}
+	cmd.AddCommand(replicaRun.command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
@@ -124,6 +128,68 @@ func (c *cmdReplicaCreate) run(cmd *cobra.Command, args []string) error {
 	}
 
 	err = client.CreateReplica(replica)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Run.
+type cmdReplicaRun struct {
+	global *cmdGlobal
+
+	flagRestore bool
+}
+
+func (c *cmdReplicaRun) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("run", i18n.G("[<remote>:]<replica>"))
+	cmd.Short = i18n.G("Run replica")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Run replica
+`))
+	cmd.Example = cli.FormatSection("", i18n.G(``))
+
+	cmd.RunE = c.run
+	cmd.Flags().BoolVar(&c.flagRestore, "restore", false, i18n.G("Restore instances from a replica target"))
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("replica", toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdReplicaRun) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	remoteName, replicaName, err := c.global.conf.ParseRemote(args[0])
+	if err != nil {
+		return err
+	}
+
+	_, wrapper := newLocationHeaderTransportWrapper()
+	client, err := c.global.conf.GetInstanceServerWithConnectionArgs(remoteName, &lxd.ConnectionArgs{TransportWrapper: wrapper})
+	if err != nil {
+		return err
+	}
+
+	replicaPost := api.ReplicaPost{
+		Name:    replicaName,
+		Restore: c.flagRestore,
+	}
+
+	err = client.RunReplica(replicaPost)
 	if err != nil {
 		return err
 	}
