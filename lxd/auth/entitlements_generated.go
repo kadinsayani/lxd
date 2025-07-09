@@ -10,13 +10,13 @@ import (
 type Entitlement string
 
 const (
-	// EntitlementCanView is the "can_view" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeClusterLink, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypeProfile, entity.TypeProject, entity.TypeStorageBucket, entity.TypeStorageVolume.
+	// EntitlementCanView is the "can_view" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeClusterLink, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypeProfile, entity.TypeProject, entity.TypeReplica, entity.TypeStorageBucket, entity.TypeStorageVolume.
 	EntitlementCanView Entitlement = "can_view"
 
-	// EntitlementCanEdit is the "can_edit" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeClusterLink, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypeProfile, entity.TypeProject, entity.TypeServer, entity.TypeStorageBucket, entity.TypeStoragePool, entity.TypeStorageVolume.
+	// EntitlementCanEdit is the "can_edit" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeClusterLink, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypeProfile, entity.TypeProject, entity.TypeReplica, entity.TypeServer, entity.TypeStorageBucket, entity.TypeStoragePool, entity.TypeStorageVolume.
 	EntitlementCanEdit Entitlement = "can_edit"
 
-	// EntitlementCanDelete is the "can_delete" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeClusterLink, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypeProfile, entity.TypeProject, entity.TypeStorageBucket, entity.TypeStoragePool, entity.TypeStorageVolume.
+	// EntitlementCanDelete is the "can_delete" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeClusterLink, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypeProfile, entity.TypeProject, entity.TypeReplica, entity.TypeStorageBucket, entity.TypeStoragePool, entity.TypeStorageVolume.
 	EntitlementCanDelete Entitlement = "can_delete"
 
 	// EntitlementAdmin is the "admin" entitlement. It applies to the following entities: entity.TypeServer.
@@ -123,6 +123,18 @@ const (
 
 	// EntitlementCanDeleteClusterLinks is the "can_delete_cluster_links" entitlement. It applies to the following entities: entity.TypeServer.
 	EntitlementCanDeleteClusterLinks Entitlement = "can_delete_cluster_links"
+
+	// EntitlementCanCreateReplicas is the "can_create_replicas" entitlement. It applies to the following entities: entity.TypeServer.
+	EntitlementCanCreateReplicas Entitlement = "can_create_replicas"
+
+	// EntitlementCanViewReplicas is the "can_view_replicas" entitlement. It applies to the following entities: entity.TypeServer.
+	EntitlementCanViewReplicas Entitlement = "can_view_replicas"
+
+	// EntitlementCanEditReplicas is the "can_edit_replicas" entitlement. It applies to the following entities: entity.TypeServer.
+	EntitlementCanEditReplicas Entitlement = "can_edit_replicas"
+
+	// EntitlementCanDeleteReplicas is the "can_delete_replicas" entitlement. It applies to the following entities: entity.TypeServer.
+	EntitlementCanDeleteReplicas Entitlement = "can_delete_replicas"
 
 	// EntitlementOperator is the "operator" entitlement. It applies to the following entities: entity.TypeInstance, entity.TypeProject.
 	EntitlementOperator Entitlement = "operator"
@@ -521,6 +533,14 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		// Grants permission to view project level metrics.
 		EntitlementCanViewMetrics,
 	},
+	entity.TypeReplica: {
+		// Grants permission to view the replica.
+		EntitlementCanView,
+		// Grants permission to edit the replica.
+		EntitlementCanEdit,
+		// Grants permission to delete the replica.
+		EntitlementCanDelete,
+	},
 	entity.TypeServer: {
 		// Grants full access to LXD as if via Unix socket.
 		EntitlementAdmin,
@@ -594,6 +614,14 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanEditClusterLinks,
 		// Grants permission to delete cluster links.
 		EntitlementCanDeleteClusterLinks,
+		// Grants permission to create replicas.
+		EntitlementCanCreateReplicas,
+		// Grants permission to view replicas.
+		EntitlementCanViewReplicas,
+		// Grants permission to edit replicas.
+		EntitlementCanEditReplicas,
+		// Grants permission to delete replicas.
+		EntitlementCanDeleteReplicas,
 	},
 	entity.TypeStorageBucket: {
 		// Grants permission to edit the storage bucket.
