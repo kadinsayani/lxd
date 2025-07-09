@@ -149,6 +149,18 @@ type server
 
     # Grants permission to delete cluster links.
     define can_delete_cluster_links: [identity, service_account, group#member] or admin
+
+    # Grants permission to create replicas.
+    define can_create_replicas: [identity, service_account, group#member] or admin
+
+    # Grants permission to view replicas.
+    define can_view_replicas: [identity, service_account, group#member] or admin or viewer
+
+    # Grants permission to edit replicas.
+    define can_edit_replicas: [identity, service_account, group#member] or admin
+
+    # Grants permission to delete replicas.
+    define can_delete_replicas: [identity, service_account, group#member] or admin
 type certificate
   relations
     define server: [server]
@@ -161,6 +173,18 @@ type certificate
 
     # Grants permission to delete the certificate.
     define can_delete: [identity, service_account, group#member] or can_delete_identities from server
+type replica
+  relations
+	define server: [server]
+
+    # Grants permission to view the replica.
+    define can_view: [identity, service_account, group#member] or can_edit or can_delete or can_view_replicas from server
+
+    # Grants permission to edit the replica.
+    define can_edit: [identity, service_account, group#member] or can_edit_replicas from server
+
+    # Grants permission to delete the replica.
+    define can_delete: [identity, service_account, group#member] or can_delete_replicas from server
 type cluster_link
   relations
 	define server: [server]
