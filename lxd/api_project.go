@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
+	clusterUtil "github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
@@ -314,7 +315,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Validate the configuration.
-	err = projectValidateConfig(s, project.Config, project.Network)
+	err = projectValidateConfig(s, project.Config, project.Network, project.Name)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -747,7 +748,7 @@ func projectChange(ctx context.Context, s *state.State, project *api.Project, re
 	}
 
 	// Validate the configuration.
-	err := projectValidateConfig(s, req.Config, "")
+	err := projectValidateConfig(s, req.Config, "", project.Name)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -1088,7 +1089,7 @@ func isEitherAllowOrBlockOrManaged(value string) error {
 // projectValidateConfig validates whether project config keys follow the expected format.
 // Any value checks that rely on the state of the database should be performed on AllowProjectUpdate,
 // so that we are performing these checks and updating the project in a single transaction.
-func projectValidateConfig(s *state.State, config map[string]string, defaultNetwork string) error {
+func projectValidateConfig(s *state.State, config map[string]string, defaultNetwork string, projectName string) error {
 	// Validate the project configuration.
 	projectConfigKeys := map[string]func(value string) error{
 		// lxdmeta:generate(entities=project; group=specific; key=backups.compression_algorithm)
@@ -1472,6 +1473,120 @@ func projectValidateConfig(s *state.State, config map[string]string, defaultNetw
 		//  defaultdesc: `block`
 		//  shortdesc: Whether to prevent creating instance or volume snapshots
 		"restricted.snapshots": isEitherAllowOrBlock,
+
+		// lxdmeta:generate(entities=project; group=replica; key=replica.mode)
+		// The replica project mode. When set, the project is considered a replica project. Possible values are `standby` and `leader`.
+		// ---
+		//  type: string
+		//  shortdesc: Replica project mode
+		"replica.mode": validate.Optional(func(value string) error {
+			if config["replica.cluster_link"] == "" {
+				return errors.New("replica.mode can only be set when replica.cluster_link is set")
+			}
+
+			// Get cluster link.
+			var clusterLink *api.ClusterLink
+			err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+				dbClusterLink, err := cluster.GetClusterLink(ctx, tx.Tx(), config["replica.cluster_link"])
+				if err != nil {
+					return fmt.Errorf("Failed to fetch cluster link %q: %w", config["replica.cluster_link"], err)
+				}
+
+				clusterLink, err = dbClusterLink.ToAPI(ctx, tx.Tx())
+				if err != nil {
+					return err
+				}
+
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+
+			// Connect to the cluster link.
+			// We skip checking "replica.mode" at the target cluster link when it is not reachable. This may be a disaster recovery scenario where the target cluster link is down and we want to promote the standby project to leader.
+			var targetProject *api.Project
+			targetReplicaMode := ""
+			skipTargetCheck := false
+			targetClient, err := clusterUtil.ConnectClusterLink(s.ShutdownCtx, s, *clusterLink)
+			if err != nil {
+				logger.Error("Failed to connect to cluster link", logger.Ctx{"clusterLinkName": clusterLink.Name, "err": err})
+				skipTargetCheck = true
+			} else {
+				// Get "replica.mode" value at cluster link.
+				targetProject, _, err = targetClient.GetProject(projectName)
+				if err != nil {
+					return err
+				}
+
+				targetReplicaMode = targetProject.Config["replica.mode"]
+			}
+
+			switch value {
+			case "leader":
+				if skipTargetCheck {
+					return nil
+				}
+
+				if targetReplicaMode == "standby" {
+					// Target project must be empty.
+					err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+						return tx.InstanceList(ctx, func(inst db.InstanceArgs, project api.Project) error {
+							_, err := inst.ToAPI()
+							if err == nil {
+								return err
+							}
+
+							return nil
+						}, cluster.InstanceFilter{
+							Project: &targetProject.Name,
+						})
+					})
+					if err != nil {
+						return errors.New("Target project must be empty when setting replica.mode to leader on the source project")
+					}
+
+					return nil
+				} else if targetReplicaMode == "" || targetReplicaMode != "standby" {
+					return errors.New("replica.mode must be set to standby on the target project when setting it to leader on the source project")
+				}
+
+				return nil
+			case "standby":
+				// TODO: Require stopped instances? The replication will fail if instances are running anyways, so this might not be needed. However, it could be helpful.
+				return nil
+			default:
+				return fmt.Errorf("Invalid replica mode %q, must be one of: leader, standby", value)
+			}
+		}),
+
+		// lxdmeta:generate(entities=project; group=replica; key=replica.cluster_link)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Replica project's associated cluster link (source or target).
+		"replica.cluster_link": validate.Optional(func(value string) error {
+			return s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+				clusterLinks, err := cluster.GetClusterLinks(ctx, tx.Tx())
+				if err != nil {
+					return fmt.Errorf("Failed to validate replica source cluster configuration: %w", err)
+				}
+
+				found := false
+				for _, clusterLink := range clusterLinks {
+					if value == clusterLink.Name {
+						found = true
+						break
+					}
+				}
+
+				if !found {
+					return api.StatusErrorf(http.StatusNotFound, "Cluster link %q not found", value)
+				}
+
+				return nil
+			})
+		}),
 	}
 
 	// Add the storage pool keys.
