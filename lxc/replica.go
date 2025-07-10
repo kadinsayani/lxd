@@ -35,6 +35,10 @@ func (c *cmdReplica) command() *cobra.Command {
 	replicaRun := cmdReplicaRun{global: c.global}
 	cmd.AddCommand(replicaRun.command())
 
+	// Delete.
+	replicaDeleteCmd := cmdReplicaDelete{global: c.global}
+	cmd.AddCommand(replicaDeleteCmd.command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
@@ -192,6 +196,60 @@ func (c *cmdReplicaRun) run(cmd *cobra.Command, args []string) error {
 	err = client.RunReplica(replicaPost)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// Delete.
+type cmdReplicaDelete struct {
+	global *cmdGlobal
+}
+
+func (c *cmdReplicaDelete) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("delete", i18n.G("[<remote>:]<replica>"))
+	cmd.Aliases = []string{"rm"}
+	cmd.Short = i18n.G("Delete replicas")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Delete replicas`))
+
+	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("replica", toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdReplicaDelete) run(cmd *cobra.Command, args []string) error {
+	// Quick checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	client := resource.server
+
+	err = client.DeleteReplica(resource.name)
+	if err != nil {
+		return err
+	}
+
+	if !c.global.flagQuiet {
+		fmt.Printf(i18n.G("Replica %s deleted")+"\n", resource.name)
 	}
 
 	return nil
