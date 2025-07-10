@@ -326,6 +326,30 @@ func (g *cmdGlobal) cmpClusterLinkConfig(linkName string) ([]string, cobra.Shell
 	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
+// cmpReplicaConfig provides shell completion for replica configs.
+// It takes a replica name and returns a list of replica configs along with a shell completion directive.
+func (c *cmdGlobal) cmpReplicaConfig(remote string) ([]string, cobra.ShellCompDirective) {
+	// Parse remote
+	resources, err := c.ParseServers(remote)
+	if err != nil || len(resources) == 0 {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	resource := resources[0]
+	replica, _, err := resource.server.GetReplica(resource.name)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	// Get all config keys
+	results := make([]string, 0, len(replica.Config))
+	for k := range replica.Config {
+		results = append(results, k)
+	}
+
+	return results, cobra.ShellCompDirectiveNoFileComp
+}
+
 // cmpClusterMemberRoles provides shell completion for cluster member roles.
 // It takes a member name and returns a list of matching cluster member roles along with a shell completion directive.
 func (g *cmdGlobal) cmpClusterMemberRoles(memberName string) ([]string, cobra.ShellCompDirective) {
