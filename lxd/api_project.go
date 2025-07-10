@@ -1472,6 +1472,20 @@ func projectValidateConfig(s *state.State, config map[string]string, defaultNetw
 		//  defaultdesc: `block`
 		//  shortdesc: Whether to prevent creating instance or volume snapshots
 		"restricted.snapshots": isEitherAllowOrBlock,
+
+		// lxdmeta:generate(entities=project; group=replica; key=replica.mode)
+		// The replica project mode. When set, the project is considered a replica project. Possible values are `standby` and `leader`.
+		// ---
+		//  type: string
+		//  shortdesc: Replica project mode
+		"replica.mode": validate.Optional(validate.IsOneOf("standby", "leader")),
+
+		// lxdmeta:generate(entities=project; group=replica; key=replica.source_cluster)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Replica project source cluster
+		"replica.source_cluster": validate.Optional(validate.IsAny),
 	}
 
 	// Add the storage pool keys.
