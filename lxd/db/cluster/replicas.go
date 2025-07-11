@@ -172,3 +172,14 @@ func clearReplicaConfig(tx *sql.Tx, replicaID int64) error {
 
 	return nil
 }
+
+// UpdateReplicaLastRunDate updates the last_run_date field of the replica with the given ID.
+func UpdateReplicaLastRunDate(tx *sql.Tx, id int64, date time.Time) error {
+	str := `UPDATE replicas SET last_run_date=? WHERE id=?`
+	_, err := tx.Exec(str, date, id)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
