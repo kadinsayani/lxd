@@ -284,3 +284,18 @@ func GetAllProjectsConfig(ctx context.Context, tx *sql.Tx) (map[string]map[strin
 
 	return projectConfigs, nil
 }
+
+// GetProjectName returns the name of the project with the given ID.
+func GetProjectName(ctx context.Context, tx *sql.Tx, id int) (string, error) {
+	stmt := "SELECT name FROM projects WHERE id=?"
+	names, err := query.SelectStrings(ctx, tx, stmt, id)
+	if err != nil {
+		return "", fmt.Errorf("Fetch project name: %w", err)
+	}
+
+	if len(names) == 0 {
+		return "", fmt.Errorf("Project with ID %d not found", id)
+	}
+
+	return names[0], nil
+}
