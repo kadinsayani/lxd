@@ -4536,3 +4536,99 @@ test_clustering_link() {
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
 }
+
+test_clustering_replica_setup() {
+  local LXD_DIR
+
+  echo "Creating clusters LXD_ONE and LXD_TWO..."
+
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_ONE_DIR}"
+  spawn_lxd "${LXD_ONE_DIR}" false
+
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_TWO_DIR}"
+  spawn_lxd "${LXD_TWO_DIR}" false
+
+  # Get the address of LXD_ONE.
+  LXD_ONE_ADDR="$(LXD_DIR=${LXD_ONE_DIR} lxc config get core.https_address)"
+
+  # Enable clustering on LXD_ONE.
+  LXD_DIR=${LXD_ONE_DIR} lxc cluster enable node1
+  [ "$(LXD_DIR=${LXD_ONE_DIR} lxc cluster list | grep -cwF 'node1')" = 1 ]
+
+  # Create source project on LXD_ONE.
+  LXD_DIR=${LXD_ONE_DIR} lxc project create replica-project
+
+  # Setup auth group with project operator permissions.
+  echo "Setup auth group on LXD_ONE"
+  LXD_DIR=${LXD_ONE_DIR} lxc auth group create replica-group
+  LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add replica-group project replica-project operator
+  # Project edit permissions are required to edit project configuration.
+  LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add replica-group project replica-project can_edit
+
+  # Get a cluster link trust token from LXD_ONE.
+  echo "Create pending cluster link on LXD_ONE"
+  LXD_ONE_TRUST_TOKEN="$(LXD_DIR=${LXD_ONE_DIR} lxc cluster link create lxd_two --quiet --auth-group replica-group)"
+
+  # Get the address of LXD_TWO.
+  LXD_TWO_ADDR="$(LXD_DIR=${LXD_TWO_DIR} lxc config get core.https_address)"
+
+  # Enable clustering on LXD_TWO.
+  LXD_DIR=${LXD_TWO_DIR} lxc cluster enable node2
+  [ "$(LXD_DIR=${LXD_TWO_DIR} lxc cluster list | grep -cwF 'node2')" = 1 ]
+
+  # Create target project on LXD_TWO.
+  LXD_DIR=${LXD_TWO_DIR} lxc project create replica-project
+
+  # Can't set "replica.mode" on LXD_ONE or LXD_TWO when "replica.cluster_link" is not set to a valid cluster link.
+  ! LXD_DIR=${LXD_TWO_DIR} lxc project set replica-project replica.mode=standby || false
+  ! LXD_DIR=${LXD_ONE_DIR} lxc project set replica-project replica.mode=leader || false
+
+  # Can't set "replica.cluster_link" to an invalid cluster link.
+  ! LXD_DIR=${LXD_ONE_DIR} lxc project set replica-project replica.cluster_link=invalid-link || false
+  ! LXD_DIR=${LXD_TWO_DIR} lxc project set replica-project replica.cluster_link=invalid-link || false
+
+  # Setup auth group with project operator permissions.
+  echo "Setup auth group on LXD_TWO"
+  LXD_DIR=${LXD_TWO_DIR} lxc auth group create replica-group
+  LXD_DIR=${LXD_TWO_DIR} lxc auth group permission add replica-group project replica-project operator
+  # Project edit permissions are required to edit project configuration.
+  LXD_DIR=${LXD_TWO_DIR} lxc auth group permission add replica-group project replica-project can_edit
+
+  echo "Create cluster link on LXD_TWO using the token from LXD_ONE"
+  LXD_DIR=${LXD_TWO_DIR} lxc cluster link create lxd_one --token "${LXD_ONE_TRUST_TOKEN}" --auth-group replica-group
+
+  # Can't set "replica.mode" when "replica.cluster_link" is not set to a valid cluster link.
+  ! LXD_DIR=${LXD_ONE_DIR} lxc project set replica-project replica.mode=leader || false
+
+  echo "Set replica.cluster_link on LXD_ONE and LXD_TWO"
+  LXD_DIR=${LXD_ONE_DIR} lxc project set replica-project replica.cluster_link=lxd_two
+  LXD_DIR=${LXD_TWO_DIR} lxc project set replica-project replica.cluster_link=lxd_one
+
+  # Can't create replica on LXD_ONE when source project does not have "replica.mode" set to "leader".
+  ! LXD_DIR=${LXD_ONE_DIR} lxc replica create my-replica --project replica-project target_cluster=lxd_two || false
+
+  # Can't create replica on LXD_ONE when target project does not have "replica.mode" set to "standby".
+  ! LXD_DIR=${LXD_ONE_DIR} lxc replica create my-replica --project replica-project target_cluster=lxd_two || false
+
+  # Can't set "replica.mode" to "leader" on LXD_ONE when target project does not have "replica.mode" set to "standby".
+  ! LXD_DIR=${LXD_ONE_DIR} lxc project set replica-project replica.mode=leader || false
+
+  echo "Set replica.mode on LXD_ONE and LXD_TWO"
+  LXD_DIR=${LXD_TWO_DIR} lxc project set replica-project replica.mode=standby
+  LXD_DIR=${LXD_ONE_DIR} lxc project set replica-project replica.mode=leader
+
+  LXD_DIR=${LXD_ONE_DIR} lxc storage create pool1 dir --project replica-project
+  # lxc init --empty c1 --project replica-project -s pool1
+  # Can't create replica on LXD_ONE when target project is not empty.
+  # ! LXD_DIR=${LXD_ONE_DIR} lxc replica create my-replica --project replica-project target_cluster=lxd_two || false
+  # lxc delete c1 --project replica-project
+
+  echo "Create replica on LXD_ONE"
+  LXD_DIR=${LXD_ONE_DIR} lxc replica create my-replica --project replica-project
+
+  # Cleanup.
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+}
