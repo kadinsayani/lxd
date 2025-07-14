@@ -59,6 +59,10 @@ func (c *cmdReplica) command() *cobra.Command {
 	replicaUnsetCmd := cmdReplicaUnset{global: c.global, replicaSet: &replicaSetCmd}
 	cmd.AddCommand(replicaUnsetCmd.command())
 
+	// Show.
+	replicaShowCmd := cmdReplicaShow{global: c.global}
+	cmd.AddCommand(replicaShowCmd.command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
@@ -356,6 +360,68 @@ func (c *cmdReplicaList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	return cli.RenderTable(c.flagFormat, header, data, replicas)
+}
+
+// Show.
+type cmdReplicaShow struct {
+	global *cmdGlobal
+}
+
+func (c *cmdReplicaShow) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("show", i18n.G("[<remote>:]<replica>"))
+	cmd.Short = i18n.G("Show replica configurations")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Show replica configurations`))
+	cmd.Example = cli.FormatSection("", i18n.G(
+		`lxc replica show my-replica
+    Will show the properties of a replica called "my-replica".`))
+
+	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("replica", toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdReplicaShow) run(cmd *cobra.Command, args []string) error {
+	// Quick checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New(i18n.G("Missing replica name"))
+	}
+
+	replica, _, err := resource.server.GetReplica(resource.name)
+	if err != nil {
+		return err
+	}
+
+	data, err := yaml.Marshal(&replica)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s", data)
+
+	return nil
 }
 
 // Get.
