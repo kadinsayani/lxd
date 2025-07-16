@@ -34,6 +34,7 @@ How to back up your server and recover from failure:
 
 :diataxis:Back up a server </backup>
 :diataxis:Recover instances </howto/disaster_recovery>
+:diataxis:Replicate instances </howto/replicas>
 ```
 
 ## Related topics
@@ -57,4 +58,5 @@ How to back up your server and recover from failure:
 :topical:Recover instances </howto/disaster_recovery>
 :topical:Server settings </reference/server_settings>
 :topical:/reference/provided_metrics
+:topical:/reference/replicas_config
 ```
