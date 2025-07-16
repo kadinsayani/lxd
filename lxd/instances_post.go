@@ -1100,6 +1100,11 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
+		// Only replica runs can create instances in a standby replica project.
+		if !req.Source.Replica && targetProject.Config["replica.mode"] == "standby" {
+			return api.StatusErrorf(http.StatusForbidden, "Cannot create instances in a standby replica project")
+		}
+
 		var targetGroupName string
 		var allMembers []db.NodeInfo
 
