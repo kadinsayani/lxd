@@ -4757,6 +4757,24 @@
 					}
 				]
 			},
+			"replica": {
+				"keys": [
+					{
+						"replica.cluster_link": {
+							"longdesc": "",
+							"shortdesc": "Replica project's associated cluster link (source or target).",
+							"type": "string"
+						}
+					},
+					{
+						"replica.mode": {
+							"longdesc": "The replica project mode. When set, the project is considered a replica project. Possible values are `standby` and `leader`.",
+							"shortdesc": "Replica project mode",
+							"type": "string"
+						}
+					}
+				]
+			},
 			"restricted": {
 				"keys": [
 					{
@@ -5020,6 +5038,27 @@
 						"user.*": {
 							"longdesc": "",
 							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"replica": {
+			"conf": {
+				"keys": [
+					{
+						"snapshot": {
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "Whether to take snapshots of the project's instances before replication or not.",
+							"type": "bool"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "User keys can be used in search.",
+							"shortdesc": "Free form user key/value storage",
 							"type": "string"
 						}
 					}
@@ -7680,6 +7719,23 @@
 				}
 			]
 		},
+		"replica": {
+			"project_specific": true,
+			"entitlements": [
+				{
+					"name": "can_view",
+					"description": "Grants permission to view the replica."
+				},
+				{
+					"name": "can_edit",
+					"description": "Grants permission to edit the replica."
+				},
+				{
+					"name": "can_delete",
+					"description": "Grants permission to delete the replica."
+				}
+			]
+		},
 		"server": {
 			"project_specific": false,
 			"entitlements": [
@@ -7826,6 +7882,22 @@
 				{
 					"name": "can_delete_cluster_links",
 					"description": "Grants permission to delete cluster links."
+				},
+				{
+					"name": "can_create_replicas",
+					"description": "Grants permission to create replicas."
+				},
+				{
+					"name": "can_view_replicas",
+					"description": "Grants permission to view replicas."
+				},
+				{
+					"name": "can_edit_replicas",
+					"description": "Grants permission to edit replicas."
+				},
+				{
+					"name": "can_delete_replicas",
+					"description": "Grants permission to delete replicas."
 				}
 			]
 		},

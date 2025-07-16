@@ -4214,6 +4214,20 @@ This value is the maximum value for the sum of the individual {config:option}`in
 ```
 
 <!-- config group project-limits end -->
+<!-- config group project-replica start -->
+```{config:option} replica.cluster_link project-replica
+:shortdesc: "Replica project's associated cluster link (source or target)."
+:type: "string"
+
+```
+
+```{config:option} replica.mode project-replica
+:shortdesc: "Replica project mode"
+:type: "string"
+The replica project mode. When set, the project is considered a replica project. Possible values are `standby` and `leader`.
+```
+
+<!-- config group project-replica end -->
 <!-- config group project-restricted start -->
 ```{config:option} restricted project-restricted
 :defaultdesc: "`false`"
@@ -4482,6 +4496,21 @@ Specify the number of days after which the unused cached image expires.
 ```
 
 <!-- config group project-specific end -->
+<!-- config group replica-conf start -->
+```{config:option} snapshot replica-conf
+:scope: "global"
+:shortdesc: "Whether to take snapshots of the project's instances before replication or not."
+:type: "bool"
+
+```
+
+```{config:option} user.* replica-conf
+:shortdesc: "Free form user key/value storage"
+:type: "string"
+User keys can be used in search.
+```
+
+<!-- config group replica-conf end -->
 <!-- config group server-acme start -->
 ```{config:option} acme.agree_tos server-acme
 :defaultdesc: "`false`"
@@ -6860,6 +6889,18 @@ using the `zfs` command in the container.
 
 
 <!-- entity group project end -->
+<!-- entity group replica start -->
+`can_view`
+: Grants permission to view the replica.
+
+`can_edit`
+: Grants permission to edit the replica.
+
+`can_delete`
+: Grants permission to delete the replica.
+
+
+<!-- entity group replica end -->
 <!-- entity group server start -->
 `admin`
 : Grants full access to LXD as if via Unix socket.
@@ -6968,6 +7009,18 @@ using the `zfs` command in the container.
 
 `can_delete_cluster_links`
 : Grants permission to delete cluster links.
+
+`can_create_replicas`
+: Grants permission to create replicas.
+
+`can_view_replicas`
+: Grants permission to view replicas.
+
+`can_edit_replicas`
+: Grants permission to edit replicas.
+
+`can_delete_replicas`
+: Grants permission to delete replicas.
 
 
 <!-- entity group server end -->
