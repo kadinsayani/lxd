@@ -42,6 +42,7 @@ Configuration option index </config-options>
 /reference/networks
 Cluster configuration </reference/cluster_member_config>
 Cluster link configuration </reference/cluster_link_config>
+Replica configuration </reference/replica_config>
 ```
 
 (reference-production)=
