@@ -4807,6 +4807,108 @@ definitions:
                 x-go-name: StoragePool
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
+    Replica:
+        properties:
+            access_entitlements:
+                description: AccessEntitlements represents the entitlements that are granted to the requesting user on the attached entity.
+                example:
+                    - can_view
+                    - can_edit
+                items:
+                    type: string
+                type: array
+                x-go-name: AccessEntitlements
+            config:
+                additionalProperties:
+                    type: string
+                description: Replica configuration map (refer to doc/replicas.md)
+                example:
+                    schedule: '@daily'
+                type: object
+                x-go-name: Config
+            description:
+                description: Description of the replica
+                example: Backup LXD cluster
+                type: string
+                x-go-name: Description
+            last_run_at:
+                description: When the replica job was last run (independent of status).
+                example: "2021-03-23T17:38:37.753398689-04:00"
+                format: date-time
+                type: string
+                x-go-name: LastRunAt
+            name:
+                description: The name of the replica
+                example: lxd02
+                type: string
+                x-go-name: Name
+            project:
+                description: The source project
+                example: default
+                type: string
+                x-go-name: Project
+        title: Replica represents high-level information about a replica.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    ReplicaPost:
+        properties:
+            config:
+                additionalProperties:
+                    type: string
+                description: Replica configuration map (refer to doc/replicas.md)
+                example:
+                    schedule: '@daily'
+                type: object
+                x-go-name: Config
+            description:
+                description: Description of the replica
+                example: My new replica
+                type: string
+                x-go-name: Description
+            name:
+                description: The name of the replica
+                example: backup-lxd02
+                type: string
+                x-go-name: Name
+            project:
+                description: The source project
+                example: default
+                type: string
+                x-go-name: Project
+            restore:
+                description: Restore mode
+                example: true
+                type: boolean
+                x-go-name: Restore
+        title: ReplicaPost represents the fields available for a new replica.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    ReplicaPut:
+        properties:
+            config:
+                additionalProperties:
+                    type: string
+                description: Replica configuration map (refer to doc/replicas.md)
+                example:
+                    schedule: '@daily'
+                type: object
+                x-go-name: Config
+            description:
+                description: Description of the replica
+                example: My new replica
+                type: string
+                x-go-name: Description
+        title: ReplicaPut represents the modifiable fields of a replica.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    ReplicaState:
+        properties:
+            status:
+                type: string
+                x-go-name: Status
+        title: ReplicaState represents the state of a replica job.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
     Resources:
         description: Resources represents the system resources available for LXD
         properties:
@@ -9310,18 +9412,18 @@ paths:
             tags:
                 - cluster-links
         put:
-            description: Updates the cluster link configuration.
-            operationId: cluster_link_put
+            description: Updates the replica configuration.
+            operationId: replica_put
             produces:
                 - application/json
             responses:
                 "200":
-                    description: Update cluster link request
+                    description: Update replica request
                     schema:
                         description: Sync response
                         properties:
                             metadata:
-                                $ref: '#/definitions/ClusterLinkPut'
+                                $ref: '#/definitions/ReplicaPut'
                             status:
                                 description: Status description
                                 example: Success
@@ -9341,9 +9443,9 @@ paths:
                     $ref: '#/responses/Forbidden'
                 "500":
                     $ref: '#/responses/InternalServerError'
-            summary: Update the cluster link
+            summary: Update the replica
             tags:
-                - cluster-links
+                - replicas
     /1.0/cluster/links/{name}/state:
         get:
             description: Get a specific cluster link state.
@@ -15557,6 +15659,294 @@ paths:
             summary: Get the projects
             tags:
                 - projects
+    /1.0/replicas:
+        get:
+            description: Returns a list of replicas (URLs).
+            operationId: replicas_get
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Retrieve replicas from all projects
+                  in: query
+                  name: all-projects
+                  type: boolean
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of endpoints
+                                example: |-
+                                    [
+                                      "/1.0/replicas/foo",
+                                      "/1.0/replicas/bar"
+                                    ]
+                                items:
+                                    type: string
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the replicas
+            tags:
+                - replicas
+        post:
+            consumes:
+                - application/json
+            description: Creates a new replica.
+            operationId: replicas_post
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Replica request
+                  in: body
+                  name: replica
+                  schema:
+                    $ref: '#/definitions/ReplicaPost'
+            produces:
+                - application/json
+            responses:
+                "202":
+                    $ref: '#/responses/Operation'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Add a replica
+            tags:
+                - replicas
+    /1.0/replicas/{name}:
+        delete:
+            description: Deletes the replica.
+            operationId: replica_delete
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Delete the replica
+            tags:
+                - replicas
+        get:
+            description: Gets a specific replica (struct).
+            operationId: replicas_get
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Replica
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/Replica'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the replica
+            tags:
+                - replicas
+        patch:
+            description: Updates a subset of the replica configuration.
+            operationId: replica_patch
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Update replica request
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/ReplicaPut'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Update the replica
+            tags:
+                - replicas
+        post:
+            consumes:
+                - application/json
+            description: Runs the replica.
+            operationId: replica_post
+            parameters:
+                - description: Replica request
+                  in: body
+                  name: replica
+                  schema:
+                    $ref: '#/definitions/ReplicaPost'
+            produces:
+                - application/json
+            responses:
+                "202":
+                    $ref: '#/responses/Operation'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Run the replica
+            tags:
+                - replicas
+    /1.0/replicas/{name}/state:
+        get:
+            description: Get a specific replcia state.
+            operationId: replica_state_get
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Replcia state
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/ReplicaState'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the replica state
+            tags:
+                - replicas
+    /1.0/replicas?recursion=1:
+        get:
+            description: Returns a list of replicas (structs).
+            operationId: replicas_get_recursion1
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Retrieve replicas from all projects
+                  in: query
+                  name: all-projects
+                  type: boolean
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of replicas
+                                items:
+                                    $ref: '#/definitions/Replica'
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the replicas
+            tags:
+                - replicas
     /1.0/resources:
         get:
             description: Gets the hardware information profile of the LXD server.
