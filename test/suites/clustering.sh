@@ -4627,6 +4627,31 @@ test_clustering_replica_setup() {
 
   echo "Create replica on LXD_ONE"
   LXD_DIR=${LXD_ONE_DIR} lxc replica create my-replica --project replica-project
+}
+
+test_clustering_replica_basic() {
+  echo "Launch instance on LXD_ONE"
+  LXD_DIR=${LXD_ONE_DIR} ensure_import_testimage
+  LXD_DIR=${LXD_ONE_DIR} lxc profile device add default root disk path="/" pool="pool1"
+  LXD_DIR=${LXD_ONE_DIR} lxc launch testimage c1 -d ${SMALL_ROOT_DISK}
+  [ "$(LXD_DIR=${LXD_ONE_DIR} lxc cluster list | grep -cwF 'node1')" = 1 ]
+
+  echo "Configure storage on LXD_TWO"
+  LXD_DIR=${LXD_TWO_DIR} ensure_import_testimage
+  LXD_DIR=${LXD_TWO_DIR} lxc profile device add default root disk path="/" pool="pool1"
+
+  # Run replica.
+  LXD_DIR=${LXD_ONE_DIR} lxc replica run my-replica
+  sleep 5
+
+  # Check instance created on LXD_TWO.
+  LXD_DIR=${LXD_TWO_DIR} lxc list --project replica-project
+  [ "$(LXD_DIR=${LXD_TWO_DIR} lxc list --project replica-project | grep -cwF 'c1')" = 1 ]
+
+  # Simulate disaster on LXD_ONE
+
+  # Promote LXD_TWO project to leader.
+  # ...
 
   # Cleanup.
   kill_lxd "${LXD_ONE_DIR}"
