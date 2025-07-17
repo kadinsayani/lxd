@@ -705,6 +705,12 @@ type InstanceCopyArgs struct {
 	// API extension: override_snapshot_profiles_on_copy
 	// If set, snapshots of the instance copy receive profiles of the target instance
 	OverrideSnapshotProfiles bool
+
+	// Whether the instance is part of a replica or not.
+	// Example: true
+	//
+	// API extension: replicas
+	Replica bool `json:"replica" yaml:"replica"`
 }
 
 // The InstanceSnapshotCopyArgs struct is used to pass additional options during instance copy.
