@@ -891,6 +891,13 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 			}
 		}
 
+		if args.Replica {
+			err := r.CheckExtension("replicas")
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		// Allow overriding the target name
 		if args.Name != "" {
 			req.Name = args.Name
@@ -905,6 +912,7 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 		req.Source.AllowInconsistent = args.AllowInconsistent
 
 		req.Source.OverrideSnapshotProfiles = args.OverrideSnapshotProfiles
+		req.Source.Replica = args.Replica
 	}
 
 	if req.Source.Live {
