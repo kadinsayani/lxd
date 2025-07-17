@@ -467,6 +467,12 @@ type InstanceSource struct {
 	//
 	// API extension: override_snapshot_profiles_on_copy
 	OverrideSnapshotProfiles bool `json:"override_snapshot_profiles" yaml:"override_snapshot_profiles"`
+
+	// Whether the instance is part of a replica or not.
+	// Example: true
+	//
+	// API extension: replicas
+	Replica bool `json:"replica" yaml:"replica"`
 }
 
 // InstanceUEFIVars represents the UEFI variables of a LXD virtual machine.
