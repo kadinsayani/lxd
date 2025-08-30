@@ -15,9 +15,10 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/canonical/lxd/client"
+	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
+	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -31,6 +32,7 @@ import (
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
+	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -38,6 +40,7 @@ import (
 	"github.com/canonical/lxd/shared/i18n"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/validate"
+	"github.com/canonical/lxd/shared/version"
 )
 
 var projectsCmd = APIEndpoint{
@@ -1074,6 +1077,11 @@ func projectNodeConfigDelete(d *Daemon, s *state.State, name string) error {
 //	---
 //	produces:
 //	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: force
+//	    description: Force delete project and related resources
+//	    type: boolean
 //	responses:
 //	  "200":
 //	    $ref: "#/responses/EmptySyncResponse"
@@ -1091,41 +1099,171 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	force := shared.IsTrue(r.FormValue("force"))
+
 	// Quick checks.
 	if name == api.ProjectDefaultName {
 		return response.Forbidden(errors.New("The 'default' project cannot be deleted"))
 	}
 
-	// On cluster notification, just clear the node config values and we're done.
-	if isClusterNotification(r) {
-		err = projectNodeConfigDelete(d, s, name)
-		if err != nil {
-			return response.SmartError(err)
-		}
+	clusterNotification := isClusterNotification(r)
 
-		return response.EmptySyncResponse
-	}
-
-	// Verify the project is empty.
+	var usedBy []string
+	var projectConfig map[string]string
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		project, err := dbCluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
 			return fmt.Errorf("Fetch project %q: %w", name, err)
 		}
 
-		empty, err := projectIsEmpty(ctx, project, tx)
-		if err != nil {
-			return err
-		}
+		if !force {
+			// Verify the project is empty.
+			empty, err := projectIsEmpty(ctx, project, tx)
+			if err != nil {
+				return err
+			}
 
-		if !empty {
-			return errors.New("Only empty projects can be removed")
+			if !empty {
+				return errors.New("Only empty projects can be removed")
+			}
+		} else {
+			usedBy, err = projectUsedBy(ctx, tx, project)
+			if err != nil {
+				return err
+			}
+
+			projectConfig, err = dbCluster.GetProjectConfig(ctx, tx.Tx(), project.Name)
+			if err != nil {
+				return fmt.Errorf("Fetch project %q config: %w", name, err)
+			}
 		}
 
 		return nil
 	})
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	if force {
+		type entityInfo struct {
+			pathArgs []string
+			target   string
+		}
+
+		// Parse used by list.
+		defaultProfile := api.NewURL().Path(version.APIVersion, "profiles", api.ProjectDefaultName).Project(name).String()
+		entries := map[entity.Type][]*entityInfo{}
+		var count int
+
+		for _, u := range usedBy {
+			if u == defaultProfile {
+				continue
+			}
+
+			url, err := url.Parse(u)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			entityType, _, target, pathArgs, err := entity.ParseURL(*url)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			if entries[entityType] == nil {
+				entries[entityType] = []*entityInfo{}
+			}
+
+			entries[entityType] = append(entries[entityType], &entityInfo{
+				pathArgs: pathArgs,
+				target:   target,
+			})
+
+			count++
+		}
+
+		// TODO:
+		// Delete instances.
+
+		// TODO:
+		// Delete profiles.
+
+		// Delete images.
+		for _, imageInfo := range entries[entity.TypeImage] {
+			var id int
+			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				id, _, err = tx.GetImage(ctx, imageInfo.pathArgs[0], dbCluster.ImageFilter{Project: &name})
+				return err
+			})
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			_, err = doImageDelete(r.Context(), s, imageInfo.pathArgs[0], id, name, clusterNotification)
+			if err != nil {
+				return response.SmartError(err)
+			}
+		}
+
+		// Delete networks.
+		for _, networkInfo := range entries[entity.TypeNetwork] {
+			err = doNetworkDelete(r.Context(), s, networkInfo.pathArgs[0], name, projectConfig, clusterNotification, clusterRequest.UserAgentClientType(r.Header.Get("User-Agent")))
+			if err != nil {
+				return response.SmartError(err)
+			}
+		}
+
+		// Delete network ACLs.
+		for _, networkACLInfo := range entries[entity.TypeNetworkACL] {
+			err = doNetworkACLDelete(r.Context(), s, networkACLInfo.pathArgs[0], name)
+			if err != nil {
+				return response.SmartError(err)
+			}
+		}
+
+		// Delete network zones.
+		for _, networkZoneInfo := range entries[entity.TypeNetworkZone] {
+			err = doNetworkZoneDelete(r.Context(), s, networkZoneInfo.pathArgs[0], name)
+			if err != nil {
+				return response.SmartError(err)
+			}
+		}
+
+		// Delete storage volumes.
+		for _, storageVolumeInfo := range entries[entity.TypeStorageVolume] {
+			poolName := storageVolumeInfo.pathArgs[0]
+			volName := storageVolumeInfo.pathArgs[2]
+
+			pool, err := storagePools.LoadByName(s, poolName)
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			volType, err := dbCluster.StoragePoolVolumeTypeFromName(storageVolumeInfo.pathArgs[1])
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			err = doStoragePoolVolumeDelete(r.Context(), s, storageVolumeInfo.target, volName, volType, pool, name, name)
+			if err != nil {
+				return response.SmartError(err)
+			}
+		}
+
+		if count != 0 {
+			// TODO: improve error message by listing remaining resources
+			return response.BadRequest(fmt.Errorf("Project could not be automatically emptied (%d items remain)", count))
+		}
+	}
+
+	// On cluster notification, just clear the node config values and we're done.
+	if clusterNotification {
+		err = projectNodeConfigDelete(d, s, name)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.EmptySyncResponse
 	}
 
 	// Clear the project-specific config keys from the local node config.
