@@ -2809,3 +2809,17 @@ Enables the creation of a multi-volume snapshot and the restoration of an instan
 Adds `DiskVolumesMode` to `POST /1.0/instances/{name}/snapshots` and `RestoreDiskVolumesMode` to `PUT /1.0/instances/{name}` to select which attached volumes are included in snapshots/restores: "root" includes only the instance's root disk; "all-exclusive" includes the root disk and any exclusively attached (non-shared) volumes. Defaults to "root".
 
 This extension also introduces a new volatile configuration key, {config:option}`instance-volatile:volatile.attached_volumes`, in the configuration of supported storage drivers for instance snapshots. This key contains a JSON-serialized map of attached volume UUIDs to the UUIDs of their corresponding snapshots. Example value: `{<volume1-uuid>: <snapshot1-uuid>,<volume2-uuid>: <snapshot2-uuid>}`.
+
+(extension-instance-placement-groups)=
+## `instance_placement_groups`
+
+Placement groups define how instances are scheduled across cluster members according to a configurable placement policy (`spread` or `compact`) and rigor (`strict` or `permissive`). They can be referenced in instance and profile configuration through the {config:option}`instance-placement:placement.group` key to control placement behavior during instance creation and migration.
+
+New API endpoints:
+
+- `GET /1.0/placement-groups` — List all placement groups
+- `POST /1.0/placement-groups` — Create a new placement group
+- `GET /1.0/placement-groups/{name}` — Retrieve details for a specific placement group
+- `PUT /1.0/placement-groups/{name}` — Replace a placement group definition
+- `PATCH /1.0/placement-groups/{name}` — Update selected properties of a placement group
+- `DELETE /1.0/placement-groups/{name}` — Delete a placement group
