@@ -3616,6 +3616,58 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_TWO_DIR}" lxc delete -f c1 c2 c3 c4 c5 c6
   LXD_DIR="${LXD_TWO_DIR}" lxc image delete testimage
 
+  echo "==> Test cluster evacuation with placement groups"
+
+  echo "Create placement groups for evacuation tests"
+  LXD_DIR="${LXD_ONE_DIR}" lxc placement-group create pg-evac-compact policy=compact rigor=permissive
+  LXD_DIR="${LXD_ONE_DIR}" lxc placement-group create pg-evac-spread policy=spread rigor=permissive
+
+  echo "==> Test evacuation: compact policy prefers same node"
+  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage evac-c1 -c placement.group=pg-evac-compact -c cluster.evacuate=migrate --target node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage evac-c2 -c placement.group=pg-evac-compact -c cluster.evacuate=migrate --target node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage evac-c3 -c placement.group=pg-evac-compact -c cluster.evacuate=migrate --target node1
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --force
+
+  echo "Verify all instances moved off node1 and preferably to the same new node (compact policy)"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L evac-c1)" != "node1" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L evac-c2)" != "node1" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L evac-c3)" != "node1" ]
+
+  # With compact+permissive, instances should prefer the same node
+  echo "Verify all instances are on the same node"
+  evac_node1=$(LXD_DIR="${LXD_ONE_DIR}" lxc list evac-c1 -f csv -c L)
+  evac_node2=$(LXD_DIR="${LXD_ONE_DIR}" lxc list evac-c2 -f csv -c L)
+  evac_node3=$(LXD_DIR="${LXD_ONE_DIR}" lxc list evac-c3 -f csv -c L)
+  [ "${evac_node1}" = "${evac_node2}" ] && [ "${evac_node2}" = "${evac_node3}" ]
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster restore node1 --force
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete evac-c1 evac-c2 evac-c3
+
+  echo "==> Test evacuation: spread policy distributes instances"
+  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage evac-s1 -c placement.group=pg-evac-spread -c cluster.evacuate=migrate --target node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage evac-s2 -c placement.group=pg-evac-spread -c cluster.evacuate=migrate --target node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage evac-s3 -c placement.group=pg-evac-spread -c cluster.evacuate=migrate --target node2
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node2 --force
+
+  echo "Verify all instances have moved off node2"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L evac-s1)" != "node2" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L evac-s2)" != "node2" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L evac-s3)" != "node2" ]
+
+  # With spread+permissive, instances should be distributed (at least 2 different nodes)
+  echo "Verify instances are on at least 2 different nodes"
+  evac_nodes=$(LXD_DIR="${LXD_ONE_DIR}" lxc list evac-s1 evac-s2 evac-s3 -f csv -c L | sort -u | wc -l)
+  [ "${evac_nodes}" -ge "2" ]
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster restore node2 --force
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete evac-s1 evac-s2 evac-s3
+
+  # Clean up placement groups
+  LXD_DIR="${LXD_ONE_DIR}" lxc placement-group delete pg-evac-compact
+  LXD_DIR="${LXD_ONE_DIR}" lxc placement-group delete pg-evac-spread
+
   printf 'config: {}\ndevices: {}' | LXD_DIR="${LXD_ONE_DIR}" lxc profile edit default
   LXD_DIR="${LXD_ONE_DIR}" lxc storage delete data
 
