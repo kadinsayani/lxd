@@ -159,6 +159,48 @@ However, you can control this behavior with the {config:option}`cluster-cluster:
    - The instance is targeted to live on this cluster member.
    - The instance is targeted to live on a member of a cluster group that the cluster member is a part of, and the cluster member has the lowest number of instances compared to the other members of the cluster group.
 
+### Placement groups
+
+Placement groups provide declarative control over how instances are distributed across cluster members.
+They define both a **policy** (how instances should be distributed) and a **rigor** (how strictly the policy is enforced).
+
+Placement groups are project-scoped resources, which means different projects can have placement groups with the same name without conflict.
+
+See {ref}`cluster-placement-groups` for usage instructions and {ref}`ref-placement-groups` for reference documentation.
+
+#### Placement policies
+
+**Spread policy**
+: Distributes instances across different cluster members to maximize availability and distribute load.
+
+  - **Strict rigor**: Places at most one instance per cluster member. Instance creation fails if there aren't enough eligible members.
+  - **Permissive rigor**: Spreads instances as evenly as possible across cluster members, ensuring the number of instances per member differs by at most one. Allows fallback if strict distribution cannot be satisfied.
+
+**Compact policy**
+: Colocates instances on the same cluster member to minimize network latency and maximize resource sharing.
+
+  - **Strict rigor**: Places all instances on the same cluster member. Instance creation fails if the preferred member is unavailable.
+  - **Permissive rigor**: Prefers to place all instances on the same cluster member, but allows fallback to other members if the preferred member is unavailable.
+
+#### Placement group behavior
+
+**During instance creation**
+: LXD applies the placement group's policy and rigor to filter eligible cluster members.
+: From the filtered members, LXD selects the member with the fewest total instances.
+: With strict rigor, if filtering returns no eligible members, instance creation fails.
+: With permissive rigor, if filtering returns no eligible members, LXD falls back to using all available cluster members.
+
+**During cluster evacuation**
+: LXD respects the placement group's policy when relocating instances from an offline or evacuated member.
+: Unlike instance creation, evacuation always allows fallback to the least-loaded member if strict placement cannot be satisfied.
+: This ensures instances can be evacuated even when placement constraints would normally prevent it.
+
+**Instance configuration**
+: Instances are assigned to placement groups using the {config:option}`instance-placement:placement.group` configuration key.
+: This can be set directly on an instance or through a profile.
+: Changing the placement group of an existing instance does not move the instance immediately.
+: The new placement policy applies only to future LXD scheduling events (such as evacuation or restart after host failure).
+
 (clusters-high-availability)=
 ## High availability
 
