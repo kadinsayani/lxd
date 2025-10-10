@@ -37,6 +37,7 @@ import (
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/placement"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
@@ -3425,7 +3426,7 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 			return err
 		}
 
-		targetMemberInfo, err := evacuateClusterSelectTarget(ctx, opts.s, candidateMembers)
+		targetMemberInfo, err := evacuateClusterSelectTarget(ctx, opts.s, inst, candidateMembers)
 		if err != nil {
 			if api.StatusErrorCheck(err, http.StatusNotFound) {
 				// Skip migration if no target is available
@@ -4488,12 +4489,32 @@ func clusterGroupValidateName(name string) error {
 	return nil
 }
 
-func evacuateClusterSelectTarget(ctx context.Context, s *state.State, candidateMembers []db.NodeInfo) (*db.NodeInfo, error) {
+func evacuateClusterSelectTarget(ctx context.Context, s *state.State, inst instance.Instance, candidateMembers []db.NodeInfo) (*db.NodeInfo, error) {
 	var targetMemberInfo *db.NodeInfo
 	var err error
 
 	// Find the least loaded cluster member which supports the instance's architecture.
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		// Check if instance is using a placement group.
+		placementGroupName, ok := inst.ExpandedConfig()["placement.group"]
+		if ok {
+			placementGroup, err := dbCluster.GetPlacementGroup(ctx, tx.Tx(), placementGroupName, inst.Project().Name)
+			if err != nil {
+				return err
+			}
+
+			filteredCandidates, err := placement.Filter(ctx, tx.Tx(), candidateMembers, nil, *placementGroup)
+			if err != nil {
+				return err
+			}
+
+			// If placement group filtering returns candidates, use them.
+			// Otherwise, fall back to all candidates.
+			if len(filteredCandidates) > 0 {
+				candidateMembers = filteredCandidates
+			}
+		}
+
 		targetMemberInfo, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
 		if err != nil {
 			return err
