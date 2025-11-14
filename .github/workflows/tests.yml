@@ -830,7 +830,13 @@ jobs:
       - name: Convert coverage files
         run: |
           set -eux
-          go tool covdata textfmt -i="${GOCOVERDIR}" -o "${GOCOVERDIR}"/coverage.out
+          # Convert binary coverage data (from integration tests) to text format if present
+          if compgen -G "${GOCOVERDIR}"/covcounters.* > /dev/null || compgen -G "${GOCOVERDIR}"/covmeta.* > /dev/null; then
+            go tool covdata textfmt -i="${GOCOVERDIR}" -o "${GOCOVERDIR}"/coverage-binary.out
+          fi
+          # Merge all text format coverage files (.out files from unit tests + converted binary data)
+          echo "mode: set" > "${GOCOVERDIR}"/coverage.out
+          find "${GOCOVERDIR}" -name "*.out" -type f ! -name "coverage.out" -exec grep -hv "^mode:" {} \; >> "${GOCOVERDIR}"/coverage.out || true
           head "${GOCOVERDIR}"/coverage.out
           # Convert to Cobertura XML format.
           # We need to ignore generated files and files not included in builds because gocover-cobertura tries to reconcile differences between files included in coverage and source.
@@ -924,28 +930,28 @@ jobs:
       - name: Unit tests (client)
         env:
           CGO_ENABLED: 0
-          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '' }}
+          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-coverprofile' || '' }}
         run: |
           set -eux
-          [ -n "${COVER}" ] && COVER="${COVER} -test.gocoverdir=${GOCOVERDIR}"
+          [ -n "${COVER}" ] && COVER="${COVER}=${GOCOVERDIR}/coverage-client.out"
           go test -mod=readonly -v ./client/... ${COVER}
 
       - name: Unit tests (lxc)
         env:
           CGO_ENABLED: 0
-          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '' }}
+          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-coverprofile' || '' }}
         run: |
           set -eux
-          [ -n "${COVER}" ] && COVER="${COVER} -test.gocoverdir=${GOCOVERDIR}"
+          [ -n "${COVER}" ] && COVER="${COVER}=${GOCOVERDIR}/coverage-lxc.out"
           go test -mod=readonly -v ./lxc/... ${COVER}
 
       - name: Unit tests (shared)
         env:
           CGO_ENABLED: 0
-          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '' }}
+          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-coverprofile' || '' }}
         run: |
           set -eux
-          [ -n "${COVER}" ] && COVER="${COVER} -test.gocoverdir=${GOCOVERDIR}"
+          [ -n "${COVER}" ] && COVER="${COVER}=${GOCOVERDIR}/coverage-shared.out"
           go test -mod=readonly -v ./shared/... ${COVER}
 
       - name: Upload coverage data
