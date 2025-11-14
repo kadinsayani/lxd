@@ -838,6 +838,9 @@ jobs:
           ignore_files=$(git grep -lE '^//go:build !.*linux' '*.go' | sed 's|^|^github.com/canonical/lxd/|; s/\./\\\./g' | paste -sd '|')
           gocover-cobertura -tags=libsqlite3 -ignore-gen-files -ignore-files "${ignore_files}" -f "${GOCOVERDIR}"/coverage.out -o "${GOCOVERDIR}"/coverage-go.xml
 
+      - name: Tmate debugging session
+        uses: mxschmitt/action-tmate@c0afd6f790e3a5564914980036ebf83216678101 # v3.23
+
       - name: Run TICS
         uses: tiobe/tics-github-action@427ef84d84bf35e39235d61406f414811bb99ce9 # v3.6.0
         with:
