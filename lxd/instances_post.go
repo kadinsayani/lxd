@@ -299,6 +299,14 @@ func createFromMigration(r *http.Request, s *state.State, projectName string, pr
 		return response.BadRequest(fmt.Errorf("Cannot refresh running instance %q", req.Name))
 	}
 
+	if req.Source.Refresh && inst != nil {
+		// Validate and apply refresh target config before migration transfer starts.
+		err = inst.Update(*args, true)
+		if err != nil {
+			return response.SmartError(fmt.Errorf("Failed applying refresh target instance config: %w", err))
+		}
+	}
+
 	revert := revert.New()
 	defer revert.Fail()
 
