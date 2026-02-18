@@ -5,7 +5,7 @@ go 1.25.6
 require (
 	github.com/NVIDIA/nvidia-container-toolkit v1.18.2
 	github.com/armon/go-proxyproto v0.1.0
-	github.com/canonical/go-dqlite/v3 v3.0.3
+	github.com/canonical/go-dqlite/v3 v3.0.4
 	github.com/digitalocean/go-smbios v0.0.0-20180907143718-390a4f403a8e
 	github.com/dustinkirkland/golang-petname v0.0.0-20260215035315-f0c533e9ce9b
 	github.com/flosch/pongo2 v0.0.0-20200913210552-0d938eb266f3
