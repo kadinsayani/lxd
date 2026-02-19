@@ -311,6 +311,8 @@ func createFromMigration(r *http.Request, s *state.State, projectName string, pr
 			return response.InternalError(err)
 		}
 
+		api.InstanceCreateConfigKeyPolicy.ApplyStrip(args.Config)
+
 		// Create the instance DB record for main instance.
 		// Note: At this stage we do not yet know if snapshots are going to be received and so we cannot
 		// create their DB records. This will be done if needed in the migrationSink.Do() function called
