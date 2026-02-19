@@ -361,6 +361,44 @@ func (c *Instance) SetWritable(put InstancePut) {
 	c.Description = put.Description
 }
 
+// ConfigKeyPolicy stores key rules used when transforming config maps.
+type ConfigKeyPolicy struct {
+	Immutable []string
+	Strip     []string
+}
+
+// ApplyStrip removes keys from config according to the policy's Strip list.
+func (p ConfigKeyPolicy) ApplyStrip(config map[string]string) {
+	for _, key := range p.Strip {
+		delete(config, key)
+	}
+}
+
+// PreserveImmutable applies immutable key values from source into config.
+func (p ConfigKeyPolicy) PreserveImmutable(config map[string]string, source map[string]string) {
+	for _, key := range p.Immutable {
+		value, exists := source[key]
+		if exists {
+			config[key] = value
+		} else {
+			delete(config, key)
+		}
+	}
+}
+
+// InstanceCreateConfigKeyPolicy is used for preparing config for new instance creation.
+var InstanceCreateConfigKeyPolicy = ConfigKeyPolicy{
+	Strip: []string{"volatile.last_state.power"},
+}
+
+// InstanceRefreshConfigKeyPolicy is used for preserving target-only keys during refresh.
+var InstanceRefreshConfigKeyPolicy = ConfigKeyPolicy{
+	Immutable: []string{
+		"volatile.last_state.power",
+		"volatile.idmap.next",
+	},
+}
+
 // ErrNoRootDisk means there is no root disk device found.
 var ErrNoRootDisk = errors.New("No root disk device found")
 
