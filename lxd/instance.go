@@ -261,6 +261,12 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 		inst, err = instance.LoadByProjectAndName(s, opts.targetInstance.Project, opts.targetInstance.Name)
 		if err != nil {
 			opts.refresh = false // Instance doesn't exist, so switch to copy mode.
+		} else {
+			// Validate and apply refresh target config before the storage refresh.
+			err = inst.Update(opts.targetInstance, true)
+			if err != nil {
+				return nil, fmt.Errorf("Failed applying refresh target instance config: %w", err)
+			}
 		}
 	}
 
@@ -282,7 +288,12 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 		}
 	}
 
-	defer instOp.Done(err)
+	// Use a closure so we read the final err value at return time.
+	defer func() {
+		if instOp != nil {
+			instOp.Done(err)
+		}
+	}()
 
 	// At this point we have already figured out the instance's root disk device so we can simply retrieve it
 	// from the expanded devices.
