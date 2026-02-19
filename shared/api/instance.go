@@ -431,6 +431,37 @@ func GetRootDiskDevice(devices map[string]map[string]string) (string, map[string
 	return "", nil, ErrNoRootDisk
 }
 
+// ApplyInstanceRefreshConfig prepares a full refresh target config payload while preserving selected target-only values.
+// This helper is intended for clients constructing refresh requests.
+func ApplyInstanceRefreshConfig(target Instance, instance InstancePut) InstancePut {
+	if instance.Config == nil {
+		instance.Config = map[string]string{}
+	}
+
+	InstanceRefreshConfigKeyPolicy.PreserveImmutable(instance.Config, target.Config)
+
+	srcRootDiskDeviceKey, _, srcRootErr := GetRootDiskDevice(instance.Devices)
+	destRootDiskDeviceKey, destRootDiskDevice, destRootErr := GetRootDiskDevice(target.Devices)
+	if srcRootErr == nil && destRootErr == nil && srcRootDiskDeviceKey == destRootDiskDeviceKey {
+		if instance.Devices == nil {
+			instance.Devices = map[string]map[string]string{}
+		}
+
+		if instance.Devices[destRootDiskDeviceKey] == nil {
+			instance.Devices[destRootDiskDeviceKey] = map[string]string{}
+		}
+
+		pool, poolExists := destRootDiskDevice["pool"]
+		if poolExists {
+			instance.Devices[destRootDiskDeviceKey]["pool"] = pool
+		} else {
+			delete(instance.Devices[destRootDiskDeviceKey], "pool")
+		}
+	}
+
+	return instance
+}
+
 // IsActive checks whether the instance state indicates the instance is active.
 //
 // API extension: instances.
