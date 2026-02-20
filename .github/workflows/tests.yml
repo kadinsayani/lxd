@@ -781,6 +781,13 @@ jobs:
           if [ -n "${GOCOVERDIR:-}" ] && systemctl is-active --quiet snap.lxd.daemon.service; then
             sudo systemctl stop snap.lxd.daemon.service
           fi
+ 
+      - name: Tmate debugging session
+        if: ${{ matrix.test == 'vm-nesting' }}
+        uses: mxschmitt/action-tmate@c0afd6f790e3a5564914980036ebf83216678101 # v3.23
+        with:
+          # Never allow public SSH access
+          limit-access-to-actor: true
 
       # always update cache as we have our own logic of
       # cache invalidation and updates in addition to a date check
