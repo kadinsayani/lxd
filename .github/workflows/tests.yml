@@ -749,6 +749,22 @@ jobs:
 
           cat bin/helpers
 
+      - name: Raise Runner Task Limits for vm-nesting
+        if: ${{ matrix.test == 'vm-nesting' }}
+        run: |
+          set -eux
+
+          # QEMU 10.2 can create many worker threads (e.g. io_uring),
+          # which may hit default systemd task limits on GHA runners.
+          sudo systemctl set-property user.slice TasksMax=infinity
+          sudo systemctl set-property system.slice TasksMax=infinity
+          sudo sysctl -w kernel.pid_max=4194304
+
+          # Emit effective values for debugging.
+          systemctl show system.slice -p TasksMax
+          systemctl show "user-$(id -u).slice" -p TasksMax || true
+          cat /proc/sys/kernel/pid_max
+
       - name: ${{ matrix.test }}
         working-directory: './lxd-ci'
         run: |
