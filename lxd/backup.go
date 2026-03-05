@@ -257,7 +257,7 @@ func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, opti
 	// Downgrade the config in case the old backup format was requested.
 	config, err = backup.ConvertFormat(config, version)
 	if err != nil {
-		return fmt.Errorf("Failed to convert backup config to version %d: %w", version, err)
+		return fmt.Errorf("Failed converting backup config to version %d: %w", version, err)
 	}
 
 	indexInfo := backup.Info{
@@ -374,7 +374,7 @@ func pruneExpiredInstanceBackups(ctx context.Context, s *state.State) error {
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("Unable to retrieve the list of expired instance backups: %w", err)
+		return fmt.Errorf("Cannot retrieve the list of expired instance backups: %w", err)
 	}
 
 	for _, b := range backups {
@@ -564,7 +564,7 @@ func volumeBackupWriteIndex(projectName string, volumeName string, pool storageP
 	// Downgrade the config in case the old backup format was requested.
 	config, err = backup.ConvertFormat(config, version)
 	if err != nil {
-		return fmt.Errorf("Failed to convert backup config to version %d: %w", version, err)
+		return fmt.Errorf("Failed converting backup config to version %d: %w", version, err)
 	}
 
 	indexInfo := backup.Info{
@@ -617,7 +617,7 @@ func pruneExpiredStorageVolumeBackups(ctx context.Context, s *state.State) error
 
 		backups, err := tx.GetExpiredStorageVolumeBackups(ctx)
 		if err != nil {
-			return fmt.Errorf("Unable to retrieve the list of expired storage volume backups: %w", err)
+			return fmt.Errorf("Cannot retrieve the list of expired storage volume backups: %w", err)
 		}
 
 		for _, b := range backups {
