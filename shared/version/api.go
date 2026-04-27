@@ -489,6 +489,7 @@ var APIExtensions = []string{
 	"cluster_links",
 	"replicators",
 	"cluster_links_unidirectional",
+	"cluster_links_unauthenticated",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
