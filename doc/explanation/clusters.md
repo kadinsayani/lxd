@@ -160,17 +160,20 @@ See {ref}`howto-cluster-groups` and {ref}`cluster-target-instance` for more info
 
 Cluster links enable secure communication between separate LXD clusters by pinning the remote cluster's TLS certificate and optionally establishing mutual trust.
 
-Cluster links are the foundation for {ref}`replicators <exp-replicators>`, which use bidirectional links to sync instances across clusters for active-passive disaster recovery. Unidirectional links are suited to scenarios where one cluster needs to read from another without granting reciprocal access.
+Cluster links are the foundation for {ref}`replicators <exp-replicators>`, which use bidirectional links to sync instances across clusters for active-passive disaster recovery. Unidirectional links are suited to scenarios where one cluster needs to read from another without granting reciprocal access, or for anonymous access to a cluster that exposes resources publicly.
 
 ### Link types
 
-There are two link types, each suited to different trust and access requirements:
+There are three link types, each suited to different trust and access requirements:
 
 `bidirectional`
 : Both clusters authenticate each other using mutual TLS. Each side creates an identity for the other and can initiate requests to the other. This is the default type.
 
 `unidirectional`
 : A pins B's certificate and uses a token to activate a pending identity that B created for A. B stores a corresponding link entry and can authenticate incoming requests from A, but holds no address for A and cannot initiate requests to it.
+
+`unidirectional-unauthenticated`
+: Only the initiating cluster (A) stores a link to B. A connects to B without presenting a client certificate, relying solely on certificate pinning for server authentication. B is completely unaware of the link and no identity is created on either side. Use this type when B exposes resources publicly or when you want read-only, anonymous-style access to B.
 
 ### How cluster links work
 
@@ -189,6 +192,12 @@ All link types rely on TLS certificate pinning: A fetches and pins B's certifica
 1. **Cluster A** consumes the token with `lxc cluster link create <name> --token <token> --unidirectional`, pins B's certificate, and calls back to B to activate the pending identity.
 1. A has an active link to B with no associated identity. B has an active identity for A and a corresponding link row.
 
+#### Unauthenticated unidirectional connection process
+
+1. **Cluster A** runs `lxc cluster link create <name> --unauthenticated --remote-address <addr>`.
+1. The CLI fetches B's certificate and displays the fingerprint for the user to confirm.
+1. A stores the link locally with B's pinned certificate. B is not contacted and remains unaware of the link.
+
 For more information, see: {ref}`howto-cluster-links-create`.
 
 (exp-clusters-links-identity)=
@@ -200,6 +209,7 @@ The identities created depend on the link type:
   - **Pending**: A trust token has been generated but the link has not been activated yet.
   - **Active**: Both clusters have exchanged certificates and the link is operational.
 - **Unidirectional (authenticated)**: B creates an identity for A and a corresponding link entry (no addresses, so B cannot reach A, but can manage A's access via `lxc cluster link delete`). A stores B's certificate directly without an associated identity.
+- **Unidirectional unauthenticated**: No identity is created on either side.
 
 Identities are managed using {ref}`fine-grained-authorization`.
 
