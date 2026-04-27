@@ -172,17 +172,6 @@ func LoadClusterLinkAndCert(ctx context.Context, tx *sql.Tx, name string) (id in
 	return dbLink.ID, clusterLink, cert, nil
 }
 
-// GetUnauthenticatedClusterLinkConnectionArgs builds connection args for unauthenticated unidirectional cluster links.
-// No client certificate is presented; only the server certificate is pinned.
-func GetUnauthenticatedClusterLinkConnectionArgs(targetCert *x509.Certificate) *lxd.ConnectionArgs {
-	targetCertStr := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: targetCert.Raw}))
-
-	return &lxd.ConnectionArgs{
-		TLSServerCert: targetCertStr,
-		UserAgent:     version.UserAgent,
-	}
-}
-
 // ConnectCluster connects to a linked cluster using the provided connection args, trying each address until one succeeds.
 func ConnectCluster(ctx context.Context, clusterLink api.ClusterLink, args *lxd.ConnectionArgs) (lxd.InstanceServer, error) {
 	addresses := shared.SplitNTrimSpace(clusterLink.Config["volatile.addresses"], ",", -1, false)
@@ -225,17 +214,8 @@ func RefreshClusterLinkVolatileAddresses(ctx context.Context, s *state.State, na
 		return nil
 	}
 
-	var args *lxd.ConnectionArgs
-	if clusterLink.Type == api.ClusterLinkTypeUnidirectionalUnauthenticated {
-		args = GetUnauthenticatedClusterLinkConnectionArgs(targetCert)
-	} else {
-		clusterCert, err := util.LoadClusterCert(s.OS.VarDir)
-		if err != nil {
-			return err
-		}
-
-		args = GetClusterLinkConnectionArgs(clusterCert, targetCert)
-	}
+	clusterCert := s.Endpoints.NetworkCert()
+	args := GetClusterLinkConnectionArgs(clusterCert, targetCert)
 
 	targetClient, err := ConnectCluster(ctx, *clusterLink, args)
 	if err != nil {
